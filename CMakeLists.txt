@@ -39,6 +39,7 @@ message(STATUS "44444444444444444444")
 
 # Supported AMD GPU architectures.
 set(HIP_SUPPORTED_ARCHS "gfx906;gfx908;gfx90a;gfx942;gfx950;gfx1030;gfx1100;gfx1101;gfx1200;gfx1201")
+set(SYCL_SUPPORTED_ARCHS "intel_gpu_pvc;intel_gpu_bmg_g21")
 
 #
 # Supported/expected torch versions for CUDA/ROCm.
@@ -675,6 +676,41 @@ elseif(VLLM_GPU_LANG STREQUAL "SYCL")
   list(APPEND VLLM_GPU_FLAGS "-DVLLM_BUILD_XPU_OPS" )
   list(APPEND VLLM_GPU_LINK_FLAGS "-fsycl" "-fsycl-targets=spir64")
   list(APPEND VLLM_LINK_LIBRARIES "sycl" "OpenCL" "pthread" "m" "dl" )
+
+  # add cutlass dependency
+  # Set CUTLASS_REVISION. Used for FetchContent. Also fixes some bogus messages when building.
+  set(CUTLASS_REVISION "v3.9-0.2" CACHE STRING "CUTLASS revision to use")
+
+  # Use the specified CUTLASS source directory for compilation if VLLM_CUTLASS_SRC_DIR is provided
+  FetchContent_Declare(
+      cutlass-sycl
+      GIT_REPOSITORY https://github.com/codeplaysoftware/cutlass-sycl.git
+      # Please keep this in sync with CUTLASS_REVISION line above.
+      GIT_TAG ${CUTLASS_REVISION}
+      GIT_PROGRESS TRUE
+
+      # Speed up CUTLASS download by retrieving only the specified GIT_TAG instead of the history.
+      # Important: If GIT_SHALLOW is enabled then GIT_TAG works only with branch names and tags.
+      # So if the GIT_TAG above is updated to a commit hash, GIT_SHALLOW must be set to FALSE
+      GIT_SHALLOW TRUE
+  )
+
+  FetchContent_Populate(cutlass-sycl)
+  set(CUTLASS_INCLUDE_DIR ${cutlass-sycl_SOURCE_DIR}/include CACHE PATH "CUTLASS Header Library")
+  set(CUTLASS_TOOLS_UTIL_INCLUDE_DIR ${cutlass-sycl_SOURCE_DIR}/tools/util/include CACHE INTERNAL "")
+  message(STATUS "cutlass dir: ${CUTLASS_INCLUDE_DIR} and ${CUTLASS_TOOLS_UTIL_INCLUDE_DIR}")
+
+  # include(${cutlass-sycl_SOURCE_DIR}/cmake/FindDPCPP.cmake)
+  # include(${cutlass-sycl_SOURCE_DIR}/cmake/onemkl.cmake)
+  # add_onemkl_to_target(TARGET _C)
+  # add_sycl_to_target(TARGET _C)
+
+  # cutlass compilation flags
+  list(APPEND VLLM_GPU_FLAGS "-DCUTLASS_ENABLE_SYCL")
+  list(APPEND VLLM_GPU_FLAGS "-DSYCL_INTEL_TARGET")
+  list(APPEND VLLM_GPU_FLAGS "-DCUTLASS_VERSIONS_GENERATED")
+  list(APPEND VLLM_GPU_FLAGS "-ftemplate-backtrace-limit=0")
+  list(APPEND VLLM_GPU_FLAGS "-fdiagnostics-color=always")
 endif()
 
 message(STATUS "Enabling C extension.")
