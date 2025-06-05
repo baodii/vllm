@@ -238,11 +238,13 @@ struct ExampleRunner {
 
 };
 
-int vllm_cutlass()
+void vllm_cutlass(at::Tensor& a)
 {
   //
   // Parse options
   //
+  //
+  std::cout << a.sizes() << std::endl;
 
   Options options;
 
@@ -250,12 +252,12 @@ int vllm_cutlass()
 
   if (options.help) {
     options.print_usage(std::cout) << std::endl;
-    return 0;
+    return;
   }
 
   if (options.error) {
     std::cerr << "Aborting execution." << std::endl;
-    return -1;
+    return;
   }
 
   //
@@ -365,7 +367,6 @@ int vllm_cutlass()
 
   CUTLASS_CHECK(runner.run(options, hw_info));
 
-  return 0;
 }
 
 void hello_vllm(at::Tensor& a) {

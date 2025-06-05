@@ -16,6 +16,11 @@ TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
       "hello_vllm(Tensor a) -> ()"
       );
   ops.impl("hello_vllm", torch::kXPU, &hello_vllm);
+  
+  ops.def(
+      "vllm_cutlass(Tensor a) -> ()"
+      );
+  ops.impl("vllm_cutlass", torch::kXPU, &vllm_cutlass);
 }
 
 REGISTER_EXTENSION(TORCH_EXTENSION_NAME)

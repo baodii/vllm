@@ -20,22 +20,17 @@ message(STATUS "Target device: ${VLLM_TARGET_DEVICE}")
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 
-message(STATUS "111111111111111111111")
-
 # Suppress potential warnings about unused manually-specified variables
 set(ignoreMe "${VLLM_PYTHON_PATH}")
-message(STATUS "2222222222222222222")
 
 # Prevent installation of dependencies (cutlass) by default.
 install(CODE "set(CMAKE_INSTALL_LOCAL_ONLY TRUE)" ALL_COMPONENTS)
-message(STATUS "333333333333333333333")
 
 #
 # Supported python versions.  These versions will be searched in order, the
 # first match will be selected.  These should be kept in sync with setup.py.
 #
 set(PYTHON_SUPPORTED_VERSIONS "3.9" "3.10" "3.11" "3.12")
-message(STATUS "44444444444444444444")
 
 # Supported AMD GPU architectures.
 set(HIP_SUPPORTED_ARCHS "gfx906;gfx908;gfx90a;gfx942;gfx950;gfx1030;gfx1100;gfx1101;gfx1200;gfx1201")
@@ -671,10 +666,13 @@ elseif(VLLM_GPU_LANG STREQUAL "SYCL")
   # append_torchlib_if_found(torch_python)
   # include_directories(${IPEX_INCLUDE_DIRS})
   set(CMPLR_ROOT $ENV{CMPLR_ROOT})
-  set(CMAKE_CXX_COMPILER icpx)
+  message(STATUS "CMPLR_ROOT: ${CMPLR_ROOT}")
+  set(CMAKE_CXX_COMPILER ${CMPLR_ROOT}/bin/icpx)
+  set(SYCL_INCLUDE_DIR ${CMPLR_ROOT}/include)
+  list(APPEND SYCL_INCLUDE_DIR ${CMPLR_ROOT}/include/sycl)
   set(VLLM_EXTRA_INCLUDE_DIRECTORIES ${CMPLR_ROOT}/include/sycl)
   list(APPEND VLLM_GPU_FLAGS "-DVLLM_BUILD_XPU_OPS" )
-  list(APPEND VLLM_GPU_LINK_FLAGS "-fsycl" "-fsycl-targets=spir64")
+  list(APPEND VLLM_GPU_LINK_FLAGS "-fsycl" "-fsycl-targets=spir64" "-Xspirv-translator" "-spirv-ext=+SPV_INTEL_split_barrier")
   list(APPEND VLLM_LINK_LIBRARIES "sycl" "OpenCL" "pthread" "m" "dl" )
 
   # add cutlass dependency
@@ -696,6 +694,7 @@ elseif(VLLM_GPU_LANG STREQUAL "SYCL")
   )
 
   FetchContent_Populate(cutlass-sycl)
+  # FetchContent_MakeAvailable(cutlass-sycl)
   set(CUTLASS_INCLUDE_DIR ${cutlass-sycl_SOURCE_DIR}/include CACHE PATH "CUTLASS Header Library")
   set(CUTLASS_TOOLS_UTIL_INCLUDE_DIR ${cutlass-sycl_SOURCE_DIR}/tools/util/include CACHE INTERNAL "")
   message(STATUS "cutlass dir: ${CUTLASS_INCLUDE_DIR} and ${CUTLASS_TOOLS_UTIL_INCLUDE_DIR}")
@@ -711,9 +710,12 @@ elseif(VLLM_GPU_LANG STREQUAL "SYCL")
   list(APPEND VLLM_GPU_FLAGS "-DCUTLASS_VERSIONS_GENERATED")
   list(APPEND VLLM_GPU_FLAGS "-ftemplate-backtrace-limit=0")
   list(APPEND VLLM_GPU_FLAGS "-fdiagnostics-color=always")
+
+  # add sycl include dir
 endif()
 
 message(STATUS "Enabling C extension.")
+message(STATUS "SYCL_INCLUDE_DIR: ${SYCL_INCLUDE_DIR}")
 define_gpu_extension_target(
   _C
   DESTINATION vllm
@@ -724,6 +726,7 @@ define_gpu_extension_target(
   ARCHITECTURES ${VLLM_GPU_ARCHES}
   INCLUDE_DIRECTORIES ${CUTLASS_INCLUDE_DIR}
   INCLUDE_DIRECTORIES ${CUTLASS_TOOLS_UTIL_INCLUDE_DIR}
+  INCLUDE_DIRECTORIES ${SYCL_INCLUDE_DIR}
   USE_SABI 3
   WITH_SOABI)
 

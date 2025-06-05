@@ -39,6 +39,9 @@ else:
 def hello_vllm(a: torch.Tensor) -> None:
     torch.ops._C.hello_vllm(a)
 
+def vllm_cutlass(a: torch.Tensor) -> None:
+    torch.ops._C.vllm_cutlass(a)
+
 # page attention ops
 def paged_attention_v1(
     out: torch.Tensor,
